@@ -93,11 +93,34 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', uptime: process.uptime() });
 });
 
+const connectDB = require('./config/db');
+const mongoose = require('mongoose');
+
 // Static files route for uploaded receipt PDFs and images
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 if (process.env.VERCEL) {
   app.use('/uploads', express.static('/tmp'));
 }
+
+// Database Connection Assurance Middleware (Prevents buffering 10000ms timeouts)
+app.use(async (req, res, next) => {
+  if (req.path === '/' || req.path === '/health' || req.path.startsWith('/uploads')) {
+    return next();
+  }
+  try {
+    await connectDB();
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        error: 'Database is currently offline. Please ensure MongoDB is running or MONGODB_URI is set correctly in environment variables.'
+      });
+    }
+    next();
+  } catch (err) {
+    return res.status(503).json({
+      error: `Database Connection Error: ${err.message}. Please verify MONGODB_URI.`
+    });
+  }
+});
 
 // API Routes mounting (Supports /api/v1/*, /api/*, and root /* for flexible deployment on Render/Vercel)
 const routes = [

@@ -130,62 +130,45 @@ const connectDB = async () => {
   }
 
   const targetUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/expensepilot';
-  const isProduction = process.env.NODE_ENV === 'production';
   
-  // Production Mode: Direct MongoDB Atlas Connection
-  if (isProduction) {
-    try {
-      const conn = await mongoose.connect(targetUri, { serverSelectionTimeoutMS: 5000 });
-      console.log(`[MongoDB Production] Connected to Cloud Database: ${conn.connection.host}`);
-      await seedDefaultDataIfNeeded();
-      return;
-    } catch (prodErr) {
-      console.warn(`[MongoDB Production Warning] Failed to connect to database (${prodErr.message}). Express server will start to maintain availability.`);
-      return;
-    }
-  }
-
-  // Development Mode: Attempt 1 - Direct connection
+  // 1. Attempt connection using configured MONGODB_URI (Cloud Atlas or Local)
   try {
-    const conn = await mongoose.connect(targetUri, { serverSelectionTimeoutMS: 2000 });
-    console.log(`[MongoDB Dev] Connected to database host: ${conn.connection.host}`);
+    const conn = await mongoose.connect(targetUri, { serverSelectionTimeoutMS: 5000 });
+    console.log(`[MongoDB] Connected to database host: ${conn.connection.host}`);
     await seedDefaultDataIfNeeded();
-    return;
-  } catch (error) {
-    console.warn(`[MongoDB Dev] Direct connection failed (${error.message}).`);
+    return conn;
+  } catch (err) {
+    console.warn(`[MongoDB Warning] Direct connection to ${targetUri} failed: ${err.message}`);
   }
 
-  // Development Mode: Attempt 2 - Auto-start installed local mongod.exe
+  // 2. Fallback: Auto-start installed local mongod.exe binary if present
   const spawned = await trySpawnLocalMongod();
   if (spawned) {
     try {
-      const conn = await mongoose.connect(targetUri, { serverSelectionTimeoutMS: 5000 });
+      const conn = await mongoose.connect('mongodb://127.0.0.1:27017/expensepilot', { serverSelectionTimeoutMS: 5000 });
       console.log(`[MongoDB] Connected to auto-started local database host: ${conn.connection.host}`);
       await seedDefaultDataIfNeeded();
-      return;
+      return conn;
     } catch (err) {
-      console.warn(`[MongoDB] Connection to auto-launched daemon failed: ${err.message}`);
+      console.warn(`[MongoDB Warning] Connection to auto-launched daemon failed: ${err.message}`);
     }
   }
 
-  // Attempt 3: In-memory fallback (catch download errors like ECONNRESET safely without process.exit)
+  // 3. Fallback: Attempt MongoMemoryServer in-process fallback
   try {
     console.log('[MongoDB] Attempting MongoMemoryServer in-process fallback...');
     const { MongoMemoryServer } = require('mongodb-memory-server');
     const mongoServer = await MongoMemoryServer.create({
-      binary: {
-        version: '4.4.18'
-      }
+      binary: { version: '4.4.18' }
     });
     const memUri = mongoServer.getUri();
     const conn = await mongoose.connect(memUri);
     console.log(`[MongoDB] In-Memory Database Connected: ${conn.connection.host}`);
     await seedDefaultDataIfNeeded();
+    return conn;
   } catch (fallbackError) {
-    console.warn('\n======================================================================');
-    console.warn(`[MongoDB Warning] Could not start database: ${fallbackError.message}`);
-    console.warn('          Express server will stay alive to prevent nodemon crashes.');
-    console.warn('======================================================================\n');
+    console.error(`[MongoDB Error] All MongoDB connection attempts failed: ${fallbackError.message}`);
+    throw new Error(`Database connection failed (${fallbackError.message}). Ensure MONGODB_URI is configured correctly.`);
   }
 };
 
