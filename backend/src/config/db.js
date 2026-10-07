@@ -144,7 +144,16 @@ const connectDB = async () => {
     await seedDefaultDataIfNeeded();
     return conn;
   } catch (err) {
-    console.warn(`[MongoDB Warning] Direct connection to ${targetUri} failed: ${err.message}`);
+    if (err.message.includes('whitelist') || err.message.includes('IP') || err.message.includes('Could not connect to any servers')) {
+      console.warn('\n======================================================================');
+      console.warn('[MongoDB Atlas Action Required] IP Whitelist restriction detected!');
+      console.warn('  1. Open MongoDB Atlas Console (https://cloud.mongodb.com)');
+      console.warn('  2. Navigate to Security -> Network Access');
+      console.warn('  3. Click "+ Add IP Address" and select "ALLOW ACCESS FROM ANYWHERE" (0.0.0.0/0)');
+      console.warn('======================================================================\n');
+    } else {
+      console.warn(`[MongoDB Warning] Direct connection to ${targetUri} failed: ${err.message}`);
+    }
   }
 
   // 2. Fallback: Auto-start installed local mongod.exe binary if present
