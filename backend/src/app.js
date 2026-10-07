@@ -102,22 +102,38 @@ if (process.env.VERCEL) {
   app.use('/uploads', express.static('/tmp'));
 }
 
+app.get('/db-status', async (req, res) => {
+  try {
+    await connectDB();
+    const readyState = mongoose.connection.readyState;
+    const states = { 0: 'Disconnected', 1: 'Connected', 2: 'Connecting', 3: 'Disconnecting' };
+    res.status(readyState === 1 ? 200 : 503).json({
+      status: states[readyState] || 'Unknown',
+      readyState,
+      host: mongoose.connection.host || 'None',
+      mongodbUriConfigured: Boolean(process.env.MONGODB_URI)
+    });
+  } catch (err) {
+    res.status(503).json({ status: 'Disconnected', error: err.message });
+  }
+});
+
 // Database Connection Assurance Middleware (Prevents buffering 10000ms timeouts)
 app.use(async (req, res, next) => {
-  if (req.path === '/' || req.path === '/health' || req.path.startsWith('/uploads')) {
+  if (req.path === '/' || req.path === '/health' || req.path === '/db-status' || req.path.startsWith('/uploads')) {
     return next();
   }
   try {
     await connectDB();
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({
-        error: 'Database is currently offline. Please ensure MongoDB is running or MONGODB_URI is set correctly in environment variables.'
+        error: 'Database is currently offline. Action required: 1) In MongoDB Atlas (https://cloud.mongodb.com), go to Network Access -> Add IP Address -> Select "0.0.0.0/0" (Allow Access Anywhere). 2) Ensure MONGODB_URI is set in Render Environment Variables. 3) If running locally, ensure local MongoDB service is started.'
       });
     }
     next();
   } catch (err) {
     return res.status(503).json({
-      error: `Database Connection Error: ${err.message}. Please verify MONGODB_URI.`
+      error: `Database Connection Error: ${err.message}. Please verify MONGODB_URI and MongoDB Atlas IP Whitelist (0.0.0.0/0).`
     });
   }
 });
