@@ -2,6 +2,12 @@ const mongoose = require('mongoose');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns');
+
+// Ensure IPv4 first DNS lookup for MongoDB Atlas SRV resolution compatibility
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 const seedDefaultDataIfNeeded = async () => {
   try {
@@ -156,8 +162,7 @@ const connectDB = async () => {
 
   // 3. Fallback: Attempt MongoMemoryServer in-process fallback if available
   try {
-    const memoryServerPkg = 'mongodb-memory-server';
-    const { MongoMemoryServer } = require(memoryServerPkg);
+    const { MongoMemoryServer } = require('mongodb-memory-server');
     console.log('[MongoDB] Attempting MongoMemoryServer in-process fallback...');
     const mongoServer = await MongoMemoryServer.create({
       binary: { version: '4.4.18' }
@@ -168,7 +173,7 @@ const connectDB = async () => {
     await seedDefaultDataIfNeeded();
     return conn;
   } catch (fallbackError) {
-    console.warn(`[MongoDB Warning] Could not establish database connection: ${fallbackError.message}`);
+    console.warn(`[MongoDB Warning] Could not establish fallback database: ${fallbackError.message}`);
     console.warn('           Please verify your MONGODB_URI setting in Render / Environment variables.');
     return null;
   }
