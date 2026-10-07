@@ -154,10 +154,11 @@ const connectDB = async () => {
     }
   }
 
-  // 3. Fallback: Attempt MongoMemoryServer in-process fallback
+  // 3. Fallback: Attempt MongoMemoryServer in-process fallback if available
   try {
+    const memoryServerPkg = 'mongodb-memory-server';
+    const { MongoMemoryServer } = require(memoryServerPkg);
     console.log('[MongoDB] Attempting MongoMemoryServer in-process fallback...');
-    const { MongoMemoryServer } = require('mongodb-memory-server');
     const mongoServer = await MongoMemoryServer.create({
       binary: { version: '4.4.18' }
     });
@@ -167,8 +168,9 @@ const connectDB = async () => {
     await seedDefaultDataIfNeeded();
     return conn;
   } catch (fallbackError) {
-    console.error(`[MongoDB Error] All MongoDB connection attempts failed: ${fallbackError.message}`);
-    throw new Error(`Database connection failed (${fallbackError.message}). Ensure MONGODB_URI is configured correctly.`);
+    console.warn(`[MongoDB Warning] Could not establish database connection: ${fallbackError.message}`);
+    console.warn('           Please verify your MONGODB_URI setting in Render / Environment variables.');
+    return null;
   }
 };
 
