@@ -173,9 +173,7 @@ const connectDB = async () => {
   try {
     const { MongoMemoryServer } = require('mongodb-memory-server');
     console.log('[MongoDB] Attempting MongoMemoryServer in-process fallback...');
-    const mongoServer = await MongoMemoryServer.create({
-      binary: { version: '4.4.18' }
-    });
+    const mongoServer = await MongoMemoryServer.create();
     const memUri = mongoServer.getUri();
     const conn = await mongoose.connect(memUri);
     console.log(`[MongoDB] In-Memory Database Connected: ${conn.connection.host}`);
