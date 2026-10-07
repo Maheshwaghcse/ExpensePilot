@@ -17,12 +17,15 @@ const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
+// Trust reverse proxies (Vercel, Render, Nginx, Cloudflare)
+app.set('trust proxy', 1);
+
 // Security Headers
 app.use(helmet({
   crossOriginResourcePolicy: false // Allows loading local receipt images in the frontend
 }));
 
-// CORS Configuration (Dynamically allow localhost, Vercel deployments, and configured URL)
+// CORS Configuration (Dynamically allow localhost, Vercel deployments, Render, and configured URL)
 const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'];
 if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/$/, ''));
 
@@ -33,7 +36,8 @@ app.use(cors({
     if (
       allowedOrigins.indexOf(cleanOrigin) !== -1 ||
       cleanOrigin.startsWith('http://localhost:') ||
-      cleanOrigin.endsWith('.vercel.app')
+      cleanOrigin.endsWith('.vercel.app') ||
+      cleanOrigin.endsWith('.onrender.com')
     ) {
       return callback(null, true);
     }
@@ -91,6 +95,9 @@ app.get('/health', (req, res) => {
 
 // Static files route for uploaded receipt PDFs and images
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+if (process.env.VERCEL) {
+  app.use('/uploads', express.static('/tmp'));
+}
 
 // API Routes mounting (Supports /api/v1/*, /api/*, and root /* for flexible deployment on Render/Vercel)
 const routes = [

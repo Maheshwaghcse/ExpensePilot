@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import VerifyEmail from './pages/VerifyEmail';
 import DashboardLayout from './components/Layout/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import Expenses from './pages/Expenses';
@@ -18,7 +19,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-950">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500 text-indigo-500" />
       </div>
     );
   }
@@ -42,7 +43,7 @@ const App = () => {
           {/* Public Auth Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/verify-email" element={<Navigate to="/login" replace />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
 
           {/* Secure Layout Routes */}
           <Route 

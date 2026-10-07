@@ -95,10 +95,10 @@ const Login = () => {
           </div>
 
           <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="text-slate-400">Default roles will map automatically.</span>
-            <a href="#" onClick={(e) => { e.preventDefault(); alert("Verification is sent automatically upon signup. Check console/logs."); }} className="text-indigo-400 hover:text-indigo-300 hover:underline">
-              Forgot password?
-            </a>
+            <Link to="/verify-email" className="text-indigo-400 hover:text-indigo-300 hover:underline">
+              Verify Account Token
+            </Link>
+            <span className="text-slate-500">ExpensePilot Auth</span>
           </div>
 
           <button
@@ -113,6 +113,76 @@ const Login = () => {
             )}
           </button>
         </form>
+
+        <div className="pt-4 border-t border-white/5 text-center">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Quick Demo One-Click Fill</p>
+          <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => {
+                const emailInput = document.getElementById('email');
+                const passInput = document.getElementById('password');
+                if (emailInput && passInput) {
+                  emailInput.value = 'admin@testcorp.com';
+                  passInput.value = 'testpassword123';
+                  emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                  passInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-white/10 hover:border-indigo-500/50 text-slate-300 text-[11px] transition-all"
+            >
+              Admin Demo
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const emailInput = document.getElementById('email');
+                const passInput = document.getElementById('password');
+                if (emailInput && passInput) {
+                  emailInput.value = 'employee@testcorp.com';
+                  passInput.value = 'employee123';
+                  emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                  passInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-white/10 hover:border-indigo-500/50 text-slate-300 text-[11px] transition-all"
+            >
+              Employee Demo
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const emailInput = document.getElementById('email');
+                const passInput = document.getElementById('password');
+                if (emailInput && passInput) {
+                  emailInput.value = 'hr@testcorp.com';
+                  passInput.value = 'hr123';
+                  emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                  passInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-white/10 hover:border-indigo-500/50 text-slate-300 text-[11px] transition-all"
+            >
+              HR Demo
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const emailInput = document.getElementById('email');
+                const passInput = document.getElementById('password');
+                if (emailInput && passInput) {
+                  emailInput.value = 'auditor@testcorp.com';
+                  passInput.value = 'auditor123';
+                  emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                  passInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-white/10 hover:border-indigo-500/50 text-slate-300 text-[11px] transition-all"
+            >
+              Auditor Demo
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

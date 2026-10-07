@@ -36,7 +36,8 @@ const Users = () => {
     name: '',
     email: '',
     role: 'Employee',
-    departmentId: ''
+    departmentId: '',
+    password: ''
   });
   const [inviting, setInviting] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState('');
@@ -91,13 +92,14 @@ const Users = () => {
     setInviteSuccess('');
     try {
       const res = await api.post('/users/invite', inviteForm);
-      setInviteSuccess(`Employee invited successfully! Temporary credentials sent to ${inviteForm.email}. Check terminal logs.`);
-      setInviteForm({ name: '', email: '', role: 'Employee', departmentId: '' });
+      const assignedPass = res.data.passwordAssigned;
+      setInviteSuccess(`User ${inviteForm.name} created successfully! Password assigned: "${assignedPass}".`);
+      setInviteForm({ name: '', email: '', role: 'Employee', departmentId: '', password: '' });
       fetchEmployees();
       setTimeout(() => {
         setInviteModalOpen(false);
         setInviteSuccess('');
-      }, 3500);
+      }, 4500);
     } catch (err) {
       alert(err.response?.data?.error || 'Invitation failed');
     } finally {
@@ -317,6 +319,17 @@ const Users = () => {
                   onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
                   placeholder="jane@company.com"
                   className="w-full rounded-xl bg-slate-950 border border-white/10 px-4 py-2.5 text-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1">Set Password (Choose password for HR / Employee)</label>
+                <input 
+                  type="text" 
+                  value={inviteForm.password}
+                  onChange={(e) => setInviteForm({ ...inviteForm, password: e.target.value })}
+                  placeholder="Enter password (or leave blank to auto-generate)"
+                  className="w-full rounded-xl bg-slate-950 border border-white/10 px-4 py-2.5 text-white focus:outline-none placeholder-slate-600"
                 />
               </div>
 

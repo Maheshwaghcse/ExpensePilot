@@ -125,6 +125,10 @@ const trySpawnLocalMongod = async () => {
 };
 
 const connectDB = async () => {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
   const targetUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/expensepilot';
   const isProduction = process.env.NODE_ENV === 'production';
   

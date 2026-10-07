@@ -46,7 +46,8 @@ const register = async (req, res) => {
       password,
       role: 'Company Admin',
       companyId: company._id,
-      status: 'Pending',
+      status: 'Active',
+      isVerified: true,
       verificationToken
     });
 

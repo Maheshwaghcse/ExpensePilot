@@ -52,7 +52,7 @@ const getCompanyUsers = async (req, res) => {
 // Admin/HR invite new Employee
 const inviteUser = async (req, res) => {
   try {
-    const { name, email, role, departmentId } = req.body;
+    const { name, email, role, departmentId, password } = req.body;
 
     if (req.user.role !== 'Company Admin' && req.user.role !== 'HR Manager') {
       return res.status(403).json({ error: 'Only Company Admins or HR Managers can invite users' });
@@ -72,13 +72,13 @@ const inviteUser = async (req, res) => {
       }
     }
 
-    // Generate temporary password
-    const tempPassword = crypto.randomBytes(8).toString('hex');
+    // Use admin specified password or generate temporary password
+    const userPassword = (password && password.trim()) ? password.trim() : crypto.randomBytes(8).toString('hex');
 
     const newUser = await User.create({
       name,
       email,
-      password: tempPassword,
+      password: userPassword,
       role: role || 'Employee',
       companyId: req.user.companyId,
       departmentId: departmentId || undefined,
@@ -95,8 +95,8 @@ const inviteUser = async (req, res) => {
         <h3>Welcome to ExpensePilot!</h3>
         <p>You have been added to the company dashboard. Here are your credentials:</p>
         <p><strong>Email:</strong> ${newUser.email}</p>
-        <p><strong>Temporary Password:</strong> ${tempPassword}</p>
-        <p>Please change your password immediately after logging in.</p>
+        <p><strong>Password:</strong> ${userPassword}</p>
+        <p>Please change your password after logging in if required.</p>
         <a href="${loginUrl}" target="_blank">Login Now</a>
       `
     });
@@ -112,6 +112,7 @@ const inviteUser = async (req, res) => {
 
     res.status(201).json({
       message: 'Employee invited successfully',
+      passwordAssigned: userPassword,
       user: {
         id: newUser._id,
         name: newUser.name,
