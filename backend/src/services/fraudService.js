@@ -1,4 +1,5 @@
 const Expense = require('../models/Expense');
+const Receipt = require('../models/Receipt');
 const Policy = require('../models/Policy');
 const FraudCase = require('../models/FraudCase');
 
@@ -7,29 +8,60 @@ const detectFraud = async (expense, receiptData = null) => {
   const fraudFlags = [];
   const companyId = expense.companyId;
 
-  // 1. Check for Duplicate Receipts in the database
-  if (expense.amount && expense.merchantName) {
-    const oneDay = 24 * 60 * 60 * 1000;
-    const start = new Date(expense.expenseDate.getTime() - oneDay);
-    const end = new Date(expense.expenseDate.getTime() + oneDay);
+  // 1. Check for Exact Duplicate Receipt File Upload (by fileUrl / original filename)
+  if (expense.receiptId) {
+    const currentReceipt = await Receipt.findById(expense.receiptId);
+    if (currentReceipt && currentReceipt.fileUrl) {
+      const currentFileName = currentReceipt.fileUrl.split('/').pop().replace(/^[0-9]+-[0-9]+-/, '').toLowerCase();
 
-    const duplicate = await Expense.findOne({
+      const allCompanyReceipts = await Receipt.find({
+        companyId,
+        _id: { $ne: currentReceipt._id }
+      });
+
+      const duplicateReceipt = allCompanyReceipts.find(r => {
+        if (!r.fileUrl) return false;
+        const otherFileName = r.fileUrl.split('/').pop().replace(/^[0-9]+-[0-9]+-/, '').toLowerCase();
+        return r.fileUrl === currentReceipt.fileUrl || (currentFileName.length >= 3 && otherFileName === currentFileName);
+      });
+
+      if (duplicateReceipt) {
+        riskScore += 85;
+        fraudFlags.push(`CRITICAL DUPLICATE FILE: Exact same receipt file ('${currentFileName}') was uploaded previously (Receipt ID: ${duplicateReceipt._id}).`);
+      }
+    }
+  }
+
+  // 2. Check for Duplicate Claim Data (Amount + Merchant + Expense Date window)
+  if (expense.amount && expense.merchantName) {
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    const expDate = expense.expenseDate ? new Date(expense.expenseDate) : new Date();
+    const start = new Date(expDate.getTime() - sevenDays);
+    const end = new Date(expDate.getTime() + sevenDays);
+
+    const escapedMerchant = expense.merchantName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const duplicateExpense = await Expense.findOne({
       companyId,
       _id: { $ne: expense._id },
-      employeeId: expense.employeeId,
       amount: expense.amount,
-      merchantName: { $regex: new RegExp(`^${expense.merchantName}$`, 'i') },
+      merchantName: { $regex: new RegExp(`^${escapedMerchant}$`, 'i') },
       expenseDate: { $gte: start, $lte: end },
       status: { $ne: 'Rejected' }
     });
 
-    if (duplicate) {
-      riskScore += 45;
-      fraudFlags.push(`Duplicate claim: matches another expense ID (${duplicate._id}) by amount, merchant, and date.`);
+    if (duplicateExpense) {
+      riskScore += 80;
+      const isSameEmployee = duplicateExpense.employeeId.toString() === expense.employeeId.toString();
+      fraudFlags.push(
+        isSameEmployee
+          ? `CRITICAL DUPLICATE CLAIM: Identical claim of $${expense.amount} for '${expense.merchantName}' was already submitted previously (Expense ID: ${duplicateExpense._id}).`
+          : `CRITICAL DUPLICATE CLAIM: Another employee in your company submitted an identical claim of $${expense.amount} for '${expense.merchantName}' (Expense ID: ${duplicateExpense._id}).`
+      );
     }
   }
 
-  // 2. Cross check user inputs with OCR extracted values
+  // 3. Cross check user inputs with OCR extracted values
   if (receiptData) {
     const amountDiff = Math.abs(expense.amount - receiptData.amount);
     if (amountDiff > 1.0) {
@@ -47,7 +79,7 @@ const detectFraud = async (expense, receiptData = null) => {
     }
   }
 
-  // 3. Match against Policy limits
+  // 4. Match against Policy limits
   const activePolicies = await Policy.find({ companyId, isActive: true });
   for (const policy of activePolicies) {
     if (policy.rules?.dailyLimit > 0 && expense.amount > policy.rules.dailyLimit) {
@@ -67,7 +99,7 @@ const detectFraud = async (expense, receiptData = null) => {
     }
   }
 
-  // 4. Repeated submission patterns under limits
+  // 5. Repeated submission patterns under limits
   const thresholdMin = 48.00;
   const thresholdMax = 49.99;
   if (expense.amount >= thresholdMin && expense.amount <= thresholdMax) {
@@ -86,15 +118,20 @@ const detectFraud = async (expense, receiptData = null) => {
   // Cap risk score at 100
   riskScore = Math.min(riskScore, 100);
 
-  // Create a FraudCase entry if there are any flagged anomalies (riskScore > 0 or flags present)
+  // Create or Update FraudCase entry if anomalies detected
   if (fraudFlags.length > 0) {
-    await FraudCase.create({
-      companyId,
-      expenseId: expense._id,
-      detectedRules: fraudFlags,
-      riskLevel: riskScore >= 70 ? 'High' : (riskScore >= 40 ? 'Medium' : 'Low'),
-      status: 'Open'
-    });
+    const riskLevel = riskScore >= 70 ? 'High' : (riskScore >= 40 ? 'Medium' : 'Low');
+    await FraudCase.findOneAndUpdate(
+      { expenseId: expense._id },
+      {
+        companyId,
+        expenseId: expense._id,
+        detectedRules: fraudFlags,
+        riskLevel,
+        status: 'Open'
+      },
+      { upsert: true, new: true }
+    );
   }
 
   return {

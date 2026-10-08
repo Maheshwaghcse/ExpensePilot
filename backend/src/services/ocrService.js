@@ -1,10 +1,8 @@
 const parseReceipt = async (fileUrl) => {
   // Simulate OCR API network delay
-  await new Promise((resolve) => setTimeout(resolve, 2500));
+  await new Promise((resolve) => setTimeout(resolve, 1500));
 
   const categories = ['Travel', 'Food', 'Accommodation', 'Fuel', 'Office Supplies', 'Training'];
-  const selectedCategory = categories[Math.floor(Math.random() * categories.length)];
-  
   const merchants = {
     Food: ['Starbucks', 'McDonalds', 'Sweetgreen', 'Uber Eats', 'Chipotle'],
     Travel: ['Uber', 'Delta Airlines', 'Lyft', 'Amtrak', 'United Airlines'],
@@ -14,11 +12,29 @@ const parseReceipt = async (fileUrl) => {
     Training: ['Coursera', 'Udemy', 'Pluralsight', 'Frontend Masters']
   };
 
+  // Clean filename to extract deterministic seed (strips timestamp prefix if present)
+  const cleanFilename = (fileUrl || 'receipt.pdf')
+    .split('/')
+    .pop()
+    .replace(/^[0-9]+-[0-9]+-/, '')
+    .toLowerCase();
+
+  // Create deterministic positive integer hash from clean filename
+  let hash = 0;
+  for (let i = 0; i < cleanFilename.length; i++) {
+    hash = ((hash << 5) - hash) + cleanFilename.charCodeAt(i);
+    hash |= 0;
+  }
+  const seed = Math.abs(hash) || 12345;
+
+  const categoryIndex = seed % categories.length;
+  const selectedCategory = categories[categoryIndex];
   const merchantList = merchants[selectedCategory] || ['Generic Merchant'];
-  const merchantName = merchantList[Math.floor(Math.random() * merchantList.length)];
-  
-  // Random amount between $15.00 and $250.00
-  const amount = parseFloat((Math.random() * 235 + 15).toFixed(2));
+  const merchantIndex = Math.floor(seed / 7) % merchantList.length;
+  const merchantName = merchantList[merchantIndex];
+
+  // Deterministic amount between $25.00 and $380.00 based on file seed
+  const amount = parseFloat((25 + (seed % 35500) / 100).toFixed(2));
 
   return {
     amount,
@@ -30,7 +46,7 @@ const parseReceipt = async (fileUrl) => {
       --- INVOICE / RECEIPT ---
       ${merchantName.toUpperCase()}
       Date: ${new Date().toLocaleDateString()}
-      Transaction ID: TXN-${Math.floor(Math.random() * 10000000)}
+      Transaction ID: TXN-${seed}
       -------------------------
       Subtotal:   $${(amount * 0.9).toFixed(2)}
       Tax (10%):  $${(amount * 0.1).toFixed(2)}
